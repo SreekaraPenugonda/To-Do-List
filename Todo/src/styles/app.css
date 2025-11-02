@@ -1,0 +1,381 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap');
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Poppins', sans-serif;
+}
+
+.app {
+  min-height: 100vh;
+  background: linear-gradient(to left, #06b4a2, #170481);
+  display: flex;
+  justify-content: center;
+  align-items: flex;
+  padding-top: 40px;
+  transition: background 1.5s ease;
+}
+
+.dark {
+  background: linear-gradient(to right, #141E30, #243B55);
+  color: white;
+}
+
+.toggle-mode {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: transparent;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+}
+
+.main {
+  background: white;
+  padding: 30px;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 600px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+  transition: all 0.4s ease;
+}
+
+.dark .main {
+  background: #1e1e1e;
+  color: rgb(0, 0, 0);
+}
+
+h1{
+  font-size: 24px;
+}
+
+.add-section {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.add-section input,
+.add-section select {
+  padding: 10px;
+  font-size: 16px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+}
+
+.add-section input[type="date"] {
+  flex: 0 0 140px;
+}
+
+.add-section button {
+  padding: 10px 20px;
+  background-color: #4facfe;
+  color: rgb(10, 0, 0);
+  font-weight: bold;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.todo-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.todo {
+  background: #f7f7f7;
+  padding: 12px 18px;
+  border-radius: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: all 0.3s ease;
+}
+
+.todo.done {
+  text-decoration: line-through;
+  background: #d3ffd3;
+  color: #555;
+}
+
+.todo.overdue {
+  border-left: 4px solid #e74c3c;
+}
+
+.todo button {
+  border: none;
+  border-radius: 15px;
+  cursor: pointer;
+  font-size: 18px;
+}
+
+.todo-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.todo-meta {
+  display: flex;
+  gap: 15px;
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.category {
+  background: #f39c12;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+.due-date {
+  color: #7f8c8d;
+}
+
+.due-date.overdue {
+  color: #e74c3c;
+  font-weight: 600;
+}
+
+.todo-actions {
+  display: flex;
+  gap: 5px;
+}
+
+.edit-btn,
+.delete-btn {
+  background: none;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 5px;
+  border-radius: 5px;
+  transition: all 0.3s;
+}
+
+.edit-btn:hover {
+  background: rgba(52, 152, 219, 0.2);
+}
+
+.delete-btn:hover {
+  background: rgba(231, 76, 60, 0.2);
+}
+
+.edit-form {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  flex-wrap: wrap;
+}
+
+.edit-form input,
+.edit-form select {
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  font-size: 14px;
+}
+
+.edit-form button {
+  padding: 8px 12px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.edit-form button:first-of-type {
+  background: #27ae60;
+  color: white;
+}
+
+.edit-form button:last-of-type {
+  background: #95a5a6;
+  color: white;
+}
+
+.actions {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.actions select {
+  padding: 8px 16px;
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.dark .actions select {
+  background: #2e2e2e;
+  color: white;
+  border-color: #555;
+}
+
+.actions button {
+  padding: 8px 16px;
+  background-color: #3498db;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+/* Auth styles */
+.auth-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  width: 100%;
+}
+
+.auth-form {
+  background: white;
+  padding: 40px;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+}
+
+.dark .auth-form {
+  background: #1e1e1e;
+  color: white;
+}
+
+.auth-form h2 {
+  text-align: center;
+  margin-bottom: 30px;
+  color: #333;
+}
+
+.dark .auth-form h2 {
+  color: white;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  font-size: 16px;
+  box-sizing: border-box;
+}
+
+.dark .form-group input {
+  background: #2e2e2e;
+  color: white;
+  border-color: #555;
+}
+
+.auth-form button {
+  width: 100%;
+  padding: 12px;
+  background-color: #4facfe;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  cursor: pointer;
+  margin-bottom: 20px;
+}
+
+.auth-form button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.link-button {
+  background: none;
+  border: none;
+  color: #4facfe;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  font-size: 18px;
+}
+
+/* Header styles */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.logout-btn {
+  padding: 8px 16px;
+  background-color: #ff4757;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.logout-btn:hover {
+  background-color: #ff3742;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .app {
+    padding: 10px;
+  }
+
+  .main {
+    padding: 20px;
+  }
+
+  .add-section {
+    flex-direction: column;
+  }
+
+  .add-section input[type="date"] {
+    flex: 1;
+  }
+
+  .actions {
+    flex-direction: column;
+  }
+
+  .todo {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .todo-actions {
+    align-self: flex-end;
+  }
+}
