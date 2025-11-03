@@ -5,108 +5,104 @@ const User = require('../models/User');
 
 const router = express.Router();
 
-// GET /todos - Get all todos for authenticated user
+// GET /api/todos - Get all todos for authenticated user
 router.get('/', auth, async (req, res) => {
   try {
-    // Find user by email from basic auth
-    const user = await User.findOne({ email: req.user.email });
+    const user = await User.findOne({ email: req.user && req.user.email });
     if (!user) {
-      return res.status(401).json({ message: 'User not found' });
+      return res.status(401).json({ error: 'User not found' });
     }
 
     const todos = await Todo.find({ userId: user._id }).sort({ createdAt: -1 });
-    res.json(todos);
+    return res.json(todos);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('GET /api/todos error:', error);
+    return res.status(500).json({ error: error.message || 'Server error' });
   }
 });
 
-// POST /todos - Create a new todo
+// POST /api/todos - Create a new todo
 router.post('/', auth, async (req, res) => {
   try {
-    // Find user by email from basic auth
-    const user = await User.findOne({ email: req.user.email });
+    const user = await User.findOne({ email: req.user && req.user.email });
     if (!user) {
-      return res.status(401).json({ message: 'User not found' });
+      return res.status(401).json({ error: 'User not found' });
+    }
+
+    const { text, completed, category, dueDate } = req.body;
+    if (!text || typeof text !== 'string' || text.trim().length === 0) {
+      return res.status(400).json({ error: 'text is required and must be a non-empty string' });
     }
 
     const todo = new Todo({
-      text: req.body.text,
-      completed: req.body.completed || false,
-      category: req.body.category || 'General',
-      dueDate: req.body.dueDate ? new Date(req.body.dueDate) : null,
+      text: text.trim(),
+      completed: completed === true,
+      category: category || 'General',
+      dueDate: dueDate ? new Date(dueDate) : null,
       userId: user._id
     });
 
     const newTodo = await todo.save();
-    res.status(201).json(newTodo);
+    return res.status(201).json(newTodo);
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    console.error('POST /api/todos error:', error);
+    return res.status(400).json({ error: error.message || 'Could not create todo' });
   }
 });
 
-// PUT /todos/:id - Update a todo
+// PUT /api/todos/:id - Update a todo
 router.put('/:id', auth, async (req, res) => {
   try {
-    // Find user by email from basic auth
-    const user = await User.findOne({ email: req.user.email });
+    const user = await User.findOne({ email: req.user && req.user.email });
     if (!user) {
-      return res.status(401).json({ message: 'User not found' });
+      return res.status(401).json({ error: 'User not found' });
     }
 
     const todo = await Todo.findById(req.params.id);
     if (!todo) {
-      return res.status(404).json({ message: 'Todo not found' });
+      return res.status(404).json({ error: 'Todo not found' });
     }
 
-    // Check if todo belongs to user
     if (todo.userId.toString() !== user._id.toString()) {
-      return res.status(403).json({ message: 'Not authorized' });
+      return res.status(403).json({ error: 'Not authorized' });
     }
 
-    if (req.body.text != null) {
-      todo.text = req.body.text;
-    }
-    if (req.body.completed != null) {
-      todo.completed = req.body.completed;
-    }
-    if (req.body.category != null) {
-      todo.category = req.body.category;
-    }
-    if (req.body.dueDate != null) {
-      todo.dueDate = req.body.dueDate ? new Date(req.body.dueDate) : null;
-    }
+    const { text, completed, category, dueDate } = req.body;
+    if (text != null) todo.text = text;
+    if (completed != null) todo.completed = !!completed;
+    if (category != null) todo.category = category;
+    if (dueDate != null) todo.dueDate = dueDate ? new Date(dueDate) : null;
 
     const updatedTodo = await todo.save();
-    res.json(updatedTodo);
+    return res.json(updatedTodo);
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    console.error('PUT /api/todos/:id error:', error);
+    return res.status(400).json({ error: error.message || 'Could not update todo' });
   }
 });
 
-// DELETE /todos/:id - Delete a todo
+// DELETE /api/todos/:id - Delete a todo
 router.delete('/:id', auth, async (req, res) => {
   try {
-    // Find user by email from basic auth
-    const user = await User.findOne({ email: req.user.email });
+    const user = await User.findOne({ email: req.user && req.user.email });
     if (!user) {
-      return res.status(401).json({ message: 'User not found' });
+      return res.status(401).json({ error: 'User not found' });
     }
 
     const todo = await Todo.findById(req.params.id);
     if (!todo) {
-      return res.status(404).json({ message: 'Todo not found' });
+      return res.status(404).json({ error: 'Todo not found' });
     }
 
-    // Check if todo belongs to user
     if (todo.userId.toString() !== user._id.toString()) {
-      return res.status(403).json({ message: 'Not authorized' });
+      return res.status(403).json({ error: 'Not authorized' });
     }
 
     await Todo.findByIdAndDelete(req.params.id);
-    res.json({ message: 'Todo deleted' });
+    return res.json({ message: 'Todo deleted' });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('DELETE /api/todos/:id error:', error);
+    return res.status(500).json({ error: error.message || 'Could not delete todo' });
   }
 });
 
