@@ -1,96 +1,74 @@
 import React, { useState } from 'react';
-import { useAuth } from '../context/AuthContext';
-import { Toaster, toast } from 'react-hot-toast';
 
-const Signup = ({ onSwitchToLogin }) => {
+const STORAGE_USERS = 'offline_todo_users';
+const STORAGE_TOKEN = 'offline_todo_token';
+
+function getUsers() {
+  return JSON.parse(localStorage.getItem(STORAGE_USERS) || '[]');
+}
+function saveUsers(users) {
+  localStorage.setItem(STORAGE_USERS, JSON.stringify(users));
+}
+function saveToken(email) {
+  localStorage.setItem(STORAGE_TOKEN, email);
+}
+
+export default function Signup({ onAuth }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [err, setErr] = useState('');
   const [loading, setLoading] = useState(false);
-  const { register } = useAuth();
 
-  const handleSubmit = async (e) => {
+  const validate = () => {
+    if (!email || !password) return 'Email and password required';
+    if (password.length < 4) return 'Password must be at least 4 characters';
+    if (password !== confirm) return 'Passwords do not match';
+    return null;
+  };
+
+  const handleSubmit = (e) => {
     e.preventDefault();
-    if (!name || !email || !password || !confirmPassword) {
-      toast.error('Please fill in all fields');
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      toast.error('Passwords do not match');
-      return;
-    }
-
-    if (password.length < 6) {
-      toast.error('Password must be at least 6 characters');
-      return;
-    }
+    setErr('');
+    const v = validate();
+    if (v) return setErr(v);
 
     setLoading(true);
-    const result = await register(name, email, password);
-    setLoading(false);
-
-    if (!result.success) {
-      toast.error(result.message);
+    try {
+      const users = getUsers();
+      if (users.some(u => u.email === email)) {
+        setErr('User already exists — please login');
+        return;
+      }
+      const newUser = { name: name || email.split('@')[0], email, password };
+      users.push(newUser);
+      saveUsers(users);
+      // auto-login
+      saveToken(email);
+      onAuth({ name: newUser.name, email: newUser.email });
+    } catch (err) {
+      setErr('Could not register');
+      console.error(err);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="auth-container">
-      <Toaster />
-      <div className="auth-form">
-        <h2>Sign Up</h2>
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <input
-              type="text"
-              placeholder="Name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-            />
-          </div>
-          <div className="form-group">
-            <input
-              type="email"
-              placeholder="Email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </div>
-          <div className="form-group">
-            <input
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </div>
-          <div className="form-group">
-            <input
-              type="password"
-              placeholder="Confirm Password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-            />
-          </div>
-          <button type="submit" disabled={loading}>
-            {loading ? 'Signing up...' : 'Sign Up'}
-          </button>
-        </form>
-        <p>
-          Already have an account?{' '}
-          <button className="link-button" onClick={onSwitchToLogin}>
-            Login
-          </button>
-        </p>
-      </div>
+    <div className="auth-card">
+      <h2>Create account</h2>
+      <form onSubmit={handleSubmit}>
+        <input placeholder="Name (optional)" value={name} onChange={e => setName(e.target.value)} />
+        <input placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} />
+        <input placeholder="Password" type="password" value={password} onChange={e => setPassword(e.target.value)} />
+        <input placeholder="Confirm password" type="password" value={confirm} onChange={e => setConfirm(e.target.value)} />
+        <div className="row">
+          <button className="btn" type="submit" disabled={loading}>{loading ? 'Creating...' : 'Register'}</button>
+        </div>
+        {err && <div className="error">{err}</div>}
+        <small className="hint">Accounts are stored in your browser only.</small>
+      </form>
     </div>
   );
-};
-
-export default Signup;
+}
