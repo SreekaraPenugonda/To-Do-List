@@ -1,40 +1,41 @@
-require('dotenv').config({ path: './backend/.env' });
-const express = require('express');
-const mongoose = require('mongoose');
-const cors = require('cors');
-const todoRoutes = require('./routes/todos');
-const authRoutes = require('./routes/auth');
+import express from "express";
+import cors from "cors";
+import path from "path";
+import todosRouter from "./routes/todos.js";
+import authRouter from "./routes/auth.js";
 
 const app = express();
-const PORT = process.env.PORT || 5000;
 
-// Middleware
-app.use(cors());
+// Body parser
 app.use(express.json());
 
-// Connect to MongoDB
-mongoose.connect(process.env.MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
-.then(() => console.log('Connected to MongoDB'))
-.catch(err => console.error('MongoDB connection error:', err));
+// CORS - allow your frontend (local + deployed)
+app.use(cors({
+  origin: [
+    "http://localhost:5173",          // Vite dev
+    "http://localhost:3000",          // CRA dev
+    "https://to-do-list-frontend-ftpr.onrender.com/" // replace with your Render frontend URL
+  ],
+  credentials: true
+}));
 
-// Routes
-app.use('/api/auth', authRoutes);
-app.use('/todos', todoRoutes);
+// mount routers
+app.use('/api/todos', todosRouter);
+app.use('/api/auth', authRouter);
 
-// Basic route
-app.get('/', (req, res) => {
-  res.json({ message: 'Todo Backend API' });
+// health check
+app.get('/health', (req, res) => res.json({ ok: true, time: Date.now() }));
+
+// 404 handler (returns JSON so frontend sees clear message)
+app.use((req, res) => {
+  res.status(404).json({ error: `Route ${req.method} ${req.originalUrl} not found` });
 });
 
-// Error handling middleware
+// global error handler
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ message: 'Something went wrong!' });
+  console.error('Unhandled error:', err.stack || err);
+  res.status(err.status || 500).json({ error: err.message || 'Internal server error' });
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
