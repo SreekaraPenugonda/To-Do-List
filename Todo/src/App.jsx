@@ -1,241 +1,246 @@
-import React, { useState, useEffect, useRef } from 'react'
-import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd'
-import { Toaster, toast } from 'react-hot-toast'
-import axios from 'axios'
-import Todo from './components/Todo'
-import Login from './components/Login'
-import Signup from './components/Signup'
-import { AuthProvider, useAuth } from './context/AuthContext'
+import React, { useEffect, useState } from 'react';
+import dayjs from 'dayjs';
 
-function AppContent() {
-  const [todos, setTodos] = useState([])
-  const [input, setInput] = useState('')
-  const [category, setCategory] = useState('General')
-  const [dueDate, setDueDate] = useState('')
-  const [filter, setFilter] = useState('all')
-  const [darkMode, setDarkMode] = useState(false)
-  const [authMode, setAuthMode] = useState('login') // 'login' or 'signup'
-  const inputRef = useRef(null)
-  const { user, logout, loading } = useAuth()
+const STORAGE_USERS = 'offline_todo_users';
+const STORAGE_TOKEN = 'offline_todo_token'; // stores logged-in user email
+// todos stored as "todos_<email>"
+
+function getUsers() {
+  return JSON.parse(localStorage.getItem(STORAGE_USERS) || '[]');
+}
+function saveUsers(users) {
+  localStorage.setItem(STORAGE_USERS, JSON.stringify(users));
+}
+
+function saveToken(email) {
+  localStorage.setItem(STORAGE_TOKEN, email);
+}
+function getToken() {
+  return localStorage.getItem(STORAGE_TOKEN);
+}
+function clearToken() {
+  localStorage.removeItem(STORAGE_TOKEN);
+}
+
+function getTodosFor(email) {
+  return JSON.parse(localStorage.getItem(`todos_${email}`) || '[]');
+}
+function saveTodosFor(email, todos) {
+  localStorage.setItem(`todos_${email}`, JSON.stringify(todos));
+}
+
+function AuthForm({ onLogin }) {
+  const [mode, setMode] = useState('login'); // or 'register'
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [err, setErr] = useState('');
+
+  useEffect(() => setErr(''), [mode, name, email, password]);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    setErr('');
+    const users = getUsers();
+
+    if (mode === 'register') {
+      if (!email || !password) return setErr('Email and password required');
+      if (users.find(u => u.email === email)) return setErr('User already exists');
+      users.push({ name: name || email.split('@')[0], email, password });
+      saveUsers(users);
+      saveToken(email);
+      onLogin({ name: name || email.split('@')[0], email });
+    } else {
+      // login
+      const user = users.find(u => u.email === email && u.password === password);
+      if (!user) return setErr('Invalid credentials');
+      saveToken(user.email);
+      onLogin({ name: user.name, email: user.email });
+    }
+  };
+
+  return (
+    <div className="auth-card">
+      <h2>{mode === 'register' ? 'Create account' : 'Welcome back'}</h2>
+      <form onSubmit={handleSubmit}>
+        {mode === 'register' && (
+          <input placeholder="Name (optional)"
+                 value={name}
+                 onChange={e => setName(e.target.value)} />
+        )}
+        <input placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} />
+        <input placeholder="Password" type="password" value={password} onChange={e => setPassword(e.target.value)} />
+        <div className="row">
+          <button type="submit" className="btn">{mode === 'register' ? 'Register' : 'Login'}</button>
+          <button type="button" className="btn ghost" onClick={() => setMode(mode === 'register' ? 'login' : 'register')}>
+            {mode === 'register' ? 'Have an account? Login' : "New user? Register"}
+          </button>
+        </div>
+        {err && <div className="error">{err}</div>}
+      </form>
+      <small className="hint">This app stores everything in your browser (localStorage).</small>
+    </div>
+  );
+}
+
+function TodoApp({ user, onLogout }) {
+  const [todos, setTodos] = useState([]);
+  const [text, setText] = useState('');
+  const [category, setCategory] = useState('General');
+  const [dueDate, setDueDate] = useState('');
+  const [editingId, setEditingId] = useState(null);
+  const [filter, setFilter] = useState('all');
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    fetchTodos()
-  }, [])
+    const list = getTodosFor(user.email);
+    setTodos(list);
+  }, [user.email]);
 
-  const fetchTodos = async () => {
-    try {
-      const response = await axios.get('http://localhost:5000/todos')
-      setTodos(response.data)
-    } catch (error) {
-      console.error('Error fetching todos:', error)
-      toast.error('Failed to load todos')
+  useEffect(() => {
+    saveTodosFor(user.email, todos);
+  }, [todos, user.email]);
+
+  const resetForm = () => {
+    setText('');
+    setCategory('General');
+    setDueDate('');
+    setEditingId(null);
+    setError('');
+  };
+
+  const addOrUpdate = (e) => {
+    e.preventDefault();
+    setError('');
+    if (!text.trim()) return setError('Please enter todo text');
+
+    if (editingId) {
+      setTodos(prev => prev.map(t => t.id === editingId ? { ...t, text: text.trim(), category, dueDate: dueDate || null } : t));
+      resetForm();
+      return;
     }
-  }
 
-  const addTodo = async () => {
-    if (input.trim() === '') {
-      toast.error("Enter a task!")
-      return
-    }
-    try {
-      const response = await axios.post('http://localhost:5000/todos', {
-        text: input,
-        completed: false,
-        category: category,
-        dueDate: dueDate || null
-      })
-      setTodos(prev => [response.data, ...prev])
-      setInput('')
-      setDueDate('')
-      toast.success("Task added!")
-    } catch (error) {
-      console.error('Error adding todo:', error)
-      toast.error('Failed to add task')
-    }
-  }
+    const newTodo = {
+      id: Date.now().toString(),
+      text: text.trim(),
+      completed: false,
+      category: category || 'General',
+      dueDate: dueDate || null,
+      createdAt: new Date().toISOString()
+    };
+    setTodos(prev => [newTodo, ...prev]);
+    resetForm();
+  };
 
-  const toggleComplete = async (id) => {
-    const todo = todos.find(t => t._id === id)
-    if (!todo) return
-    try {
-      await axios.put(`http://localhost:5000/todos/${id}`, {
-        completed: !todo.completed
-      })
-      setTodos(todos.map(t => t._id === id ? { ...t, completed: !t.completed } : t))
-    } catch (error) {
-      console.error('Error toggling todo:', error)
-      toast.error('Failed to update task')
-    }
-  }
+  const startEdit = (t) => {
+    setEditingId(t.id);
+    setText(t.text);
+    setCategory(t.category || 'General');
+    setDueDate(t.dueDate ? dayjs(t.dueDate).format('YYYY-MM-DD') : '');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
-  const deleteTodo = async (id) => {
-    try {
-      await axios.delete(`http://localhost:5000/todos/${id}`)
-      setTodos(todos.filter(t => t._id !== id))
-    } catch (error) {
-      console.error('Error deleting todo:', error)
-      toast.error('Failed to delete task')
-    }
-  }
+  const remove = (id) => {
+    if (!confirm('Delete this todo?')) return;
+    setTodos(prev => prev.filter(t => t.id !== id));
+  };
 
-  const clearAll = async () => {
-    try {
-      await Promise.all(todos.map(todo => axios.delete(`http://localhost:5000/todos/${todo._id}`)))
-      setTodos([])
-      toast('Cleared all tasks')
-    } catch (error) {
-      console.error('Error clearing all todos:', error)
-      toast.error('Failed to clear all tasks')
-    }
-  }
+  const toggle = (id) => {
+    setTodos(prev => prev.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
+  };
 
-  const clearCompleted = async () => {
-    try {
-      const completedTodos = todos.filter(t => t.completed)
-      await Promise.all(completedTodos.map(todo => axios.delete(`http://localhost:5000/todos/${todo._id}`)))
-      setTodos(todos.filter(t => !t.completed))
-      toast('Cleared completed tasks')
-    } catch (error) {
-      console.error('Error clearing completed todos:', error)
-      toast.error('Failed to clear completed tasks')
-    }
-  }
+  const filtered = todos.filter(t => {
+    if (filter === 'all') return true;
+    if (filter === 'active') return !t.completed;
+    if (filter === 'completed') return t.completed;
+    return true;
+  });
 
-  const remindTask = () => {
-    if (Notification.permission === "granted") {
-      new Notification("Reminder", { body: "Hey! Complete your tasks!" })
-    } else {
-      Notification.requestPermission().then(permission => {
-        if (permission === "granted") {
-          new Notification("Reminder", { body: "Hey! Complete your tasks!" })
-        }
-      })
-    }
-  }
-
-  const handleDragEnd = async (result) => {
-    if (!result.destination) return
-    const reordered = Array.from(todos)
-    const [moved] = reordered.splice(result.source.index, 1)
-    reordered.splice(result.destination.index, 0, moved)
-    setTodos(reordered)
-    // Note: Drag and drop reordering is not persisted to backend as it's not implemented in the API
-  }
-
-  if (loading) {
-    return <div className="loading">Loading...</div>
-  }
-
-  if (!user) {
-    return (
-      <div className={`app ${darkMode ? 'dark' : ''}`}>
-        <button className="toggle-mode" onClick={() => setDarkMode(!darkMode)}>
-          {darkMode ? '☀️' : '🌙'}
-        </button>
-        {authMode === 'login' ? (
-          <Login onSwitchToSignup={() => setAuthMode('signup')} />
-        ) : (
-          <Signup onSwitchToLogin={() => setAuthMode('login')} />
-        )}
-      </div>
-    )
-  }
+  const categories = Array.from(new Set(['General', ...todos.map(t => t.category || 'General')]));
 
   return (
-    <div className={`app ${darkMode ? 'dark' : ''}`}>
-      <Toaster />
-      <button className="toggle-mode" onClick={() => setDarkMode(!darkMode)}>
-        {darkMode ? '☀️' : '🌙'}
-      </button>
-      <div className="main">
-        <div className="header">
-          <h1>📝 TO-DO LIST</h1>
-          <div className="user-info">
-            <span>Welcome, {user.name}!</span>
-            <button onClick={logout} className="logout-btn">Logout</button>
+    <div className="app-wrap">
+      <header className="top">
+        <h1>Todo — {user.name}</h1>
+        <div>
+          <button className="btn small" onClick={() => { clearToken(); onLogout(); }}>Logout</button>
+        </div>
+      </header>
+
+      <main>
+        <form className="todo-form" onSubmit={addOrUpdate}>
+          <input placeholder="What do you want to do?"
+                 value={text}
+                 onChange={e => setText(e.target.value)} />
+          <div className="row">
+            <select value={category} onChange={e => setCategory(e.target.value)}>
+              {categories.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
+            <button className="btn" type="submit">{editingId ? 'Update' : 'Add'}</button>
+            {editingId && <button type="button" className="btn ghost" onClick={resetForm}>Cancel</button>}
+          </div>
+          {error && <div className="error">{error}</div>}
+        </form>
+
+        <div className="controls">
+          <div>
+            <strong>{filtered.length}</strong> todos
+          </div>
+          <div>
+            <select value={filter} onChange={e => setFilter(e.target.value)}>
+              <option value="all">All</option>
+              <option value="active">Active</option>
+              <option value="completed">Completed</option>
+            </select>
           </div>
         </div>
-        <div className="add-section">
-          <input
-            ref={inputRef}
-            type="text"
-            placeholder="Add new task..."
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && addTodo()}
-          />
-          <select value={category} onChange={(e) => setCategory(e.target.value)}>
-            <option value="General">General</option>
-            <option value="Work">Work</option>
-            <option value="Personal">Personal</option>
-            <option value="Shopping">Shopping</option>
-            <option value="Health">Health</option>
-          </select>
-          <input
-            type="date"
-            value={dueDate}
-            onChange={(e) => setDueDate(e.target.value)}
-            placeholder="Due date"
-          />
-          <button onClick={addTodo}>Add</button>
-        </div>
 
-        <div className="actions">
-          <select value={filter} onChange={(e) => setFilter(e.target.value)}>
-            <option value="all">All Tasks</option>
-            <option value="pending">Pending</option>
-            <option value="completed">Completed</option>
-            <option value="overdue">Overdue</option>
-          </select>
-          <button onClick={clearCompleted}>Clear Completed</button>
-          <button onClick={clearAll}>Clear All</button>
-          <button onClick={remindTask}>🔔 Remind</button>
-        </div>
-
-        <DragDropContext onDragEnd={handleDragEnd}>
-          <Droppable droppableId="todos">
-            {(provided) => (
-              <div {...provided.droppableProps} ref={provided.innerRef} className="todo-list">
-                {todos
-                  .filter(todo => {
-                    if (filter === 'pending') return !todo.completed
-                    if (filter === 'completed') return todo.completed
-                    if (filter === 'overdue') return todo.dueDate && new Date(todo.dueDate) < new Date() && !todo.completed
-                    return true
-                  })
-                  .map((todo, index) => (
-                    <Draggable key={todo._id} draggableId={todo._id} index={index}>
-                      {(provided) => (
-                        <div
-                          ref={provided.innerRef}
-                          {...provided.draggableProps}
-                          {...provided.dragHandleProps}
-                        >
-                          <Todo
-                            todo={todo}
-                            toggleComplete={() => toggleComplete(todo._id)}
-                            deleteTodo={() => deleteTodo(todo._id)}
-                          />
-                        </div>
-                      )}
-                    </Draggable>
-                  ))}
-                {provided.placeholder}
+        <ul className="todo-list">
+          {filtered.map(t => (
+            <li key={t.id} className={t.completed ? 'done' : ''}>
+              <div className="left">
+                <input type="checkbox" checked={t.completed} onChange={() => toggle(t.id)} />
+                <div className="meta">
+                  <div className="text">{t.text}</div>
+                  <div className="sub">
+                    <span className="cat">{t.category}</span>
+                    {t.dueDate && <span className="due">Due: {dayjs(t.dueDate).format('MMM D, YYYY')}</span>}
+                  </div>
+                </div>
               </div>
-            )}
-          </Droppable>
-        </DragDropContext>
-      </div>
+
+              <div className="actions">
+                <button className="btn small" onClick={() => startEdit(t)}>Edit</button>
+                <button className="btn small danger" onClick={() => remove(t.id)}>Delete</button>
+              </div>
+            </li>
+          ))}
+          {filtered.length === 0 && <li className="empty">No todos yet — add one above ✨</li>}
+        </ul>
+      </main>
+
+      <footer className="foot">
+        <small>Stored in your browser. No backend required.</small>
+      </footer>
     </div>
-  )
+  );
 }
 
-function App() {
-  return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
-  )
-}
+export default function App() {
+  const [user, setUser] = useState(null);
 
-export default App
+  useEffect(() => {
+    const email = getToken();
+    if (email) {
+      const users = getUsers();
+      const u = users.find(x => x.email === email);
+      if (u) setUser({ name: u.name, email: u.email });
+      else clearToken();
+    }
+  }, []);
+
+  if (!user) return <div className="centerwrap"><AuthForm onLogin={(u) => setUser(u)} /></div>;
+
+  return <TodoApp user={user} onLogout={() => setUser(null)} />;
+}
